@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="mystyle.css">
+    <title>Class Reports</title>
+</head>
+<body>
+
+<header class="main-header">
+    <div class="logo-container">
+        <img src="logo.png" alt="School Logo" class="school-logo">
+        <h1>Student Ticket System</h1>
+    </div>
+
+    <button onclick="toggleDarkMode()" id="themeToggle">
+        🌙
+    </button>
+</header>
+<h1>Class Reports</h1>
+
+<div id="classList"></div>
+
+<hr>
+
+<div id="reportView"></div>
+
+<br>
+<button onclick="window.location.href='index.html'">Back</button>
+
+<script>
+const data = JSON.parse(localStorage.getItem("hallPassData"));
+const classListDiv = document.getElementById("classList");
+const reportViewDiv = document.getElementById("reportView");
+
+function formatDuration(seconds) {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return mins + "m " + secs + "s";
+}
+
+/* ===============================
+   SHOW LIST OF CLASSES AS LINKS
+================================ */
+function loadClassList() {
+
+    classListDiv.innerHTML = "<h2>Select a Class</h2>";
+
+    data.classes.forEach(c => {
+
+        if (c.report) {
+            const link = document.createElement("button");
+
+            link.innerText =
+                c.className + " - " +
+                c.subjectName + " | " +
+                new Date(c.report.classStart).toLocaleDateString();
+
+            link.onclick = function () {
+                showReport(c.id);
+            };
+
+            classListDiv.appendChild(link);
+            classListDiv.appendChild(document.createElement("br"));
+            classListDiv.appendChild(document.createElement("br"));
+        }
+    });
+}
+
+/* ===============================
+   SHOW INDIVIDUAL REPORT
+================================ */
+function showReport(classId) {
+
+    const selectedClass = data.classes.find(c => c.id === classId);
+    const report = selectedClass.report;
+
+    reportViewDiv.innerHTML = `
+        <h2>${selectedClass.className} - ${selectedClass.subjectName}</h2>
+        <p><strong>Class Started:</strong> ${new Date(report.classStart).toLocaleString()}</p>
+        <p><strong>Class Ended:</strong> ${new Date(report.classEnd).toLocaleString()}</p>
+        <p><strong>Class Duration:</strong> ${formatDuration(report.classDuration)}</p>
+        <hr>
+        <p><strong>Total Tickets:</strong> ${report.totalTickets}</p>
+        <p><strong>Closed Tickets:</strong> ${report.closedTickets}</p>
+        <p><strong>Total Ticket Time:</strong> ${formatDuration(report.totalTime)}</p>
+        <p><strong>Average Ticket Time:</strong> ${formatDuration(report.averageTime)}</p>
+        <br>
+        <button onclick="exportReportCSV('${classId}')">
+            Export This Report to CSV
+        </button>
+        <hr>
+    `;
+}   
+
+/* ===============================
+   EXPORT REPORT TO CSV
+================================ */
+function exportReportCSV(classId) {
+
+    const selectedClass = data.classes.find(c => c.id === classId);
+
+    let csv = "Class Name,Subject,Start Time,End Time,Class Duration (seconds),Total Tickets,Closed Tickets,Total Ticket Time (seconds),Average Ticket Time (seconds)\n";
+
+    csv += `"${selectedClass.className}",`;
+    csv += `"${selectedClass.subjectName}",`;
+    csv += `"${selectedClass.report.classStart}",`;
+    csv += `"${selectedClass.report.classEnd}",`;
+    csv += `${selectedClass.report.classDuration},`;
+    csv += `${selectedClass.report.totalTickets},`;
+    csv += `${selectedClass.report.closedTickets},`;
+    csv += `${selectedClass.report.totalTime},`;
+    csv += `${selectedClass.report.averageTime}\n`;
+
+    csv += "\n\nTicket Details\n";
+    csv += "ID,Students,Reason,Start,End,Duration(seconds)\n";
+
+    selectedClass.tickets.forEach(ticket => {
+
+        csv += `${ticket.id},"${ticket.students}",${ticket.reason},`;
+        csv += `${ticket.startTime},${ticket.endTime || ""},`;
+        csv += `${ticket.duration || ""}\n`;
+    });
+
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download =
+        selectedClass.className + "_" +
+        selectedClass.subjectName + "_FULL_REPORT.csv";
+
+    a.click();
+}
+
+/* =============================== */
+
+loadClassList();
+</script>
+
+</body>
+</html>

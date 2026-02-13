@@ -1,0 +1,80 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="mystyle.css">
+    <title>Hall pass monitoring</title>
+</head>
+<body>
+
+<header class="main-header">
+    <div class="logo-container">
+        <img src="logo.png" alt="School Logo" class="school-logo">
+        <h1>Hall Pass Monitoring System V3</h1>
+    </div>
+
+    <button onclick="toggleDarkMode()" id="themeToggle">
+        🌙
+    </button>
+</header>
+
+<section>
+    <h3>Create New Class</h3>
+
+    <input type="text" id="className" placeholder="Class Name (e.g. 2M)">
+    <input type="text" id="subjectName" placeholder="Subject (e.g. Mathematics)">
+    <br><br>
+    <button onclick="startClass()">Start Class</button>
+</section>
+
+<br>
+
+<section>
+    <button onclick="viewReports()">View Reports</button>
+</section>
+
+<script>
+function initStorage() {
+    if (!localStorage.getItem("hallPassData")) {
+        localStorage.setItem("hallPassData", JSON.stringify({ classes: [] }));
+    }
+}
+
+function startClass() {
+
+    const className = document.getElementById("className").value;
+    const subjectName = document.getElementById("subjectName").value;
+
+    if (!className || !subjectName) {
+        alert("Please enter class name and subject");
+        return;
+    }
+
+    const data = JSON.parse(localStorage.getItem("hallPassData"));
+
+    const newClass = {
+        id: Date.now().toString(),
+        className,
+        subjectName,
+        startTime: new Date().toISOString(),
+        tickets: [],
+        report: null
+    };
+
+    data.classes.push(newClass);
+
+    localStorage.setItem("hallPassData", JSON.stringify(data));
+    localStorage.setItem("currentClassId", newClass.id);
+
+    window.location.href = "inclass.html";
+}
+
+function viewReports() {
+    window.location.href = "reports.html";
+}
+
+initStorage();
+</script>
+
+</body>
+</html>

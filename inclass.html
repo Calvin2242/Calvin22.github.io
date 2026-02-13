@@ -1,0 +1,262 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="mystyle.css">
+    <title>Hall pass monitoring</title>
+</head>
+<body>
+
+<header class="main-header">
+    <div class="logo-container">
+        <img src="logo.png" alt="School Logo" class="school-logo">
+    </div>
+
+    <div>
+        <h2 id="classInfo"></h2>
+    </div>
+
+    <button onclick="toggleDarkMode()" id="themeToggle">
+        🌙
+    </button>
+</header>
+
+<section class="dashboard">
+    <div>Active: <span id="activeCount">0</span></div>
+    <div>Closed: <span id="closedCount">0</span></div>
+    <div>Total Tickets: <span id="totalCount">0</span></div>
+</section>
+
+
+<section>
+    <h2>Create Ticket</h2>
+
+    <input type="text" id="students" placeholder="Student Names (comma separated)">
+    <input type="text" id="reason" placeholder="Reason">
+    <button onclick="createTicket()">Create</button>
+</section>
+
+<section>
+    <h2>Active Tickets</h2>
+    <table border="1">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Students</th>
+                <th>Reason</th>
+                <th>Start Time</th>
+                <th>Live Timer</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody id="activeBody"></tbody>
+    </table>
+</section>
+
+<section>
+    <h2>Closed Tickets</h2>
+    <table border="1">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Students</th>
+                <th>Reason</th>
+                <th>Start</th>
+                <th>End</th>
+                <th>Duration</th>
+            </tr>
+        </thead>
+        <tbody id="closedBody"></tbody>
+    </table>
+</section>
+
+<br>
+<button onclick="endClass()">Generate Report & End Class</button>
+
+<script>
+let data = JSON.parse(localStorage.getItem("hallPassData"));
+let currentClassId = localStorage.getItem("currentClassId");
+let currentClass = data.classes.find(c => c.id === currentClassId);
+
+document.getElementById("classInfo").innerText =
+    currentClass.className + " - " + currentClass.subjectName +
+    " | Started: " + new Date(currentClass.startTime).toLocaleString();
+
+function saveData() {
+    localStorage.setItem("hallPassData", JSON.stringify(data));
+}
+
+function formatTime(dateString) {
+    return new Date(dateString).toLocaleTimeString();
+}
+
+function formatDuration(seconds) {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return mins + "m " + secs + "s";
+}
+
+function createTicket() {
+
+    const students = document.getElementById("students").value;
+    const reason = document.getElementById("reason").value;
+
+    if (!students || !reason) {
+        alert("Fill all fields");
+        return;
+    }
+
+    const ticket = {
+        id: Date.now().toString().slice(-4),
+        students,
+        reason,
+        startTime: new Date().toISOString(),
+        endTime: null,
+        duration: null
+    };
+
+    currentClass.tickets.push(ticket);
+    saveData();
+    renderTables();
+
+    document.getElementById("students").value = "";
+    document.getElementById("reason").value = "";
+}
+
+function closeTicket(id) {
+    const ticket = currentClass.tickets.find(t => t.id === id);
+
+    ticket.endTime = new Date().toISOString();
+    ticket.duration =
+        (new Date(ticket.endTime) - new Date(ticket.startTime)) / 1000;
+
+    saveData();
+    renderTables();
+}
+
+function renderTables() {
+
+    const activeBody = document.getElementById("activeBody");
+    const closedBody = document.getElementById("closedBody");
+
+    activeBody.innerHTML = "";
+    closedBody.innerHTML = "";
+
+    let activeCount = 0;
+    let closedCount = 0;
+
+    currentClass.tickets.forEach(ticket => {
+
+        if (!ticket.endTime) {
+
+            activeCount++;
+
+            const elapsed =
+                (new Date() - new Date(ticket.startTime)) / 1000;
+
+            const row = document.createElement("tr");
+
+            if (elapsed > 600) { // 10 minutes
+                row.classList.add("warning");
+            }
+
+            row.classList.add("new-ticket");
+
+            row.innerHTML = `
+                <td>${ticket.id}</td>
+                <td>${ticket.students}</td>
+                <td>${ticket.reason}</td>
+                <td>${formatTime(ticket.startTime)}</td>
+                <td>${formatDuration(elapsed)}</td>
+                <td><button onclick="closeTicket('${ticket.id}')">Close</button></td>
+            `;
+
+            activeBody.appendChild(row);
+
+        } else {
+
+            closedCount++;
+
+            closedBody.innerHTML += `
+                <tr>
+                    <td>${ticket.id}</td>
+                    <td>${ticket.students}</td>
+                    <td>${ticket.reason}</td>
+                    <td>${formatTime(ticket.startTime)}</td>
+                    <td>${formatTime(ticket.endTime)}</td>
+                    <td>${formatDuration(ticket.duration)}</td>
+                </tr>
+            `;
+        }
+    });
+
+    document.getElementById("activeCount").innerText = activeCount;
+    document.getElementById("closedCount").innerText = closedCount;
+    document.getElementById("totalCount").innerText =
+        currentClass.tickets.length;
+}
+
+setInterval(renderTables, 1000);
+
+function endClass() {
+
+    const classEndTime = new Date().toISOString();
+    const classDuration =
+        (new Date(classEndTime) - new Date(currentClass.startTime)) / 1000;
+
+    const totalTickets = currentClass.tickets.length;
+    const closedTickets = currentClass.tickets.filter(t => t.endTime).length;
+
+    let totalTime = 0;
+    currentClass.tickets.forEach(t => {
+        if (t.duration) totalTime += t.duration;
+    });
+
+    const averageTime = closedTickets ? totalTime / closedTickets : 0;
+
+    currentClass.report = {
+        className: currentClass.className,
+        subjectName: currentClass.subjectName,
+        classStart: currentClass.startTime,
+        classEnd: classEndTime,
+        classDuration: classDuration,
+        totalTickets,
+        closedTickets,
+        totalTime,
+        averageTime
+    };
+
+    saveData();
+    localStorage.removeItem("currentClassId");
+    window.location.href = "index.html";
+}
+
+function toggleDarkMode() {
+
+    const body = document.body;
+
+    if (body.classList.contains("dark")) {
+        body.classList.remove("dark");
+        body.classList.add("light");
+        localStorage.setItem("theme", "light");
+    } else {
+        body.classList.remove("light");
+        body.classList.add("dark");
+        localStorage.setItem("theme", "dark");
+    }
+}
+
+function loadTheme() {
+    const theme = localStorage.getItem("theme") || "light";
+    document.body.classList.add(theme);
+}
+
+loadTheme();
+
+
+
+renderTables();
+</script>
+
+</body>
+</html>
