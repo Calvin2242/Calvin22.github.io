@@ -34,9 +34,12 @@ const classListDiv = document.getElementById("classList");
 const reportViewDiv = document.getElementById("reportView");
 
 function formatDuration(seconds) {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return mins + "m " + secs + "s";
+    if (seconds === null || seconds === undefined || seconds === "") return "";
+    const s = Number(seconds);
+    if (isNaN(s)) return seconds;
+    const hours = Math.floor(s / 3600);
+    const mins = Math.floor((s % 3600) / 60);
+    return String(hours).padStart(2, '0') + ":" + String(mins).padStart(2, '0');
 }
 
 /* ===============================
@@ -54,7 +57,8 @@ function loadClassList() {
             link.innerText =
                 c.className + " - " +
                 c.subjectName + " | " +
-                new Date(c.report.classStart).toLocaleDateString();
+                new Date(c.report.classStart).toLocaleDateString() +
+                " | " + formatDuration(c.report.classDuration);
 
             link.onclick = function () {
                 showReport(c.id);
@@ -100,26 +104,26 @@ function exportReportCSV(classId) {
 
     const selectedClass = data.classes.find(c => c.id === classId);
 
-    let csv = "Class Name,Subject,Start Time,End Time,Class Duration (seconds),Total Tickets,Closed Tickets,Total Ticket Time (seconds),Average Ticket Time (seconds)\n";
+    let csv = "Class Name,Subject,Start Time,End Time,Class Duration (HH:MM),Total Tickets,Closed Tickets,Total Ticket Time (HH:MM),Average Ticket Time (HH:MM)\n";
 
     csv += `"${selectedClass.className}",`;
     csv += `"${selectedClass.subjectName}",`;
     csv += `"${selectedClass.report.classStart}",`;
     csv += `"${selectedClass.report.classEnd}",`;
-    csv += `${selectedClass.report.classDuration},`;
+    csv += `"${formatDuration(selectedClass.report.classDuration)}",`;
     csv += `${selectedClass.report.totalTickets},`;
     csv += `${selectedClass.report.closedTickets},`;
-    csv += `${selectedClass.report.totalTime},`;
-    csv += `${selectedClass.report.averageTime}\n`;
+    csv += `"${formatDuration(selectedClass.report.totalTime)}",`;
+    csv += `"${formatDuration(selectedClass.report.averageTime)}"\n`;
 
     csv += "\n\nTicket Details\n";
-    csv += "ID,Students,Reason,Start,End,Duration(seconds)\n";
+    csv += "ID,Students,Reason,Start,End,Duration(HH:MM)\n";
 
     selectedClass.tickets.forEach(ticket => {
 
         csv += `${ticket.id},"${ticket.students}",${ticket.reason},`;
         csv += `${ticket.startTime},${ticket.endTime || ""},`;
-        csv += `${ticket.duration || ""}\n`;
+        csv += `"${ticket.duration ? formatDuration(ticket.duration) : ""}"\n`;
     });
 
     const blob = new Blob([csv], { type: "text/csv" });
